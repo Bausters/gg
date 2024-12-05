@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Royale Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #111;
+            margin: 0;
+        }
+        canvas {
+            border: 2px solid white;
+            background-color: #333;
+        }
+        #message {
+            color: white;
+            text-align: center;
+            position: absolute;
+            top: 10px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="message">Use WASD to move, Space to shoot!</div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<script>
+    // Game Variables
+    let playerHealth = 100;
+    let playerSpeed = 5;
+    let playerX = 100;
+    let playerY = 100;
+    let playerWidth = 30;
+    let playerHeight = 30;
+    let bullets = [];
+    let enemies = [];
+    let gameOver = false;
+
+    // Canvas Setup
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Event Listeners for Player Input
+    let keys = { w: false, a: false, s: false, d: false, space: false };
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "w") keys.w = true;
+        if (e.key === "a") keys.a = true;
+        if (e.key === "s") keys.s = true;
+        if (e.key === "d") keys.d = true;
+        if (e.key === " ") keys.space = true;
+    });
+
+    document.addEventListener("keyup", (e) => {
+        if (e.key === "w") keys.w = false;
+        if (e.key === "a") keys.a = false;
+        if (e.key === "s") keys.s = false;
+        if (e.key === "d") keys.d = false;
+        if (e.key === " ") keys.space = false;
+    });
+
+    // Player Object
+    const player = {
+        x: playerX,
+        y: playerY,
+        width: playerWidth,
+        height: playerHeight,
+        color: "blue",
+        health: playerHealth,
+        move: function() {
+            if (keys.w && this.y > 0) this.y -= playerSpeed;
+            if (keys.s && this.y < canvas.height - this.height) this.y += playerSpeed;
+            if (keys.a && this.x > 0) this.x -= playerSpeed;
+            if (keys.d && this.x < canvas.width - this.width) this.x += playerSpeed;
+        },
+        shoot: function() {
+            if (keys.space) {
+                let bullet = {
+                    x: this.x + this.width / 2 - 5,
+                    y: this.y,
+                    width: 10,
+                    height: 5,
+                    speed: 10,
+                    color: "yellow",
+                };
+                bullets.push(bullet);
+            }
+        },
+        draw: function() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        },
+    };
+
+    // Bullet Logic
+    function moveBullets() {
+        for (let i = 0; i < bullets.length; i++) {
+            bullets[i].y -= bullets[i].speed;
+            if (bullets[i].y < 0) {
+                bullets.splice(i, 1);
+                i--;
+            }
+        }
+    }
+
+    // Enemy Logic
+    function spawnEnemies() {
+        if (Math.random() < 0.02) {
+            let enemy = {
+                x: Math.random() * (canvas.width - 30),
+                y: -30,
+                width: 30,
+                height: 30,
+                speed: 3,
+                color: "red",
+            };
+            enemies.push(enemy);
+        }
+    }
+
+    function moveEnemies() {
+        for (let i = 0; i < enemies.length; i++) {
+            enemies[i].y += enemies[i].speed;
+            if (enemies[i].y > canvas.height) {
+                enemies.splice(i, 1);
+                i--;
+            }
+        }
+    }
+
+    // Collision Detection
+    function checkCollisions() {
+        // Bullet to Enemy
+        for (let i = 0; i < bullets.length; i++) {
+            for (let j = 0; j < enemies.length; j++) {
+                if (bullets[i].x < enemies[j].x + enemies[j].width &&
+                    bullets[i].x + bullets[i].width > enemies[j].x &&
+                    bullets[i].y < enemies[j].y + enemies[j].height &&
+                    bullets[i].y + bullets[i].height > enemies[j].y) {
+                    // Bullet hits enemy
+                    bullets.splice(i, 1);
+                    enemies.splice(j, 1);
+                    i--;
+                    break;
+                }
+            }
+        }
+
+        // Player to Enemy
+        for (let i = 0; i < enemies.length; i++) {
+            if (player.x < enemies[i].x + enemies[i].width &&
+                player.x + player.width > enemies[i].x &&
+                player.y < enemies[i].y + enemies[i].height &&
+                player.y + player.height > enemies[i].y) {
+                // Player gets hit by enemy
+                player.health -= 10;
+                enemies.splice(i, 1);
+                if (player.health <= 0) {
+                    gameOver = true;
+                }
+            }
+        }
+    }
+
+    // Game Update Function
+    function updateGame() {
+        if (gameOver) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.fillText("GAME OVER!", canvas.width / 2 - 100, canvas.height / 2);
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Player Actions
+        player.move();
+        player.shoot();
+        player.draw();
+
+        // Bullet Actions
+        moveBullets();
+
+        // Enemy Actions
+        spawnEnemies();
+        moveEnemies();
+
+        // Collision Detection
+        checkCollisions();
+
+        // Draw Bullets
+        for (let i = 0; i < bullets.length; i++) {
+            ctx.fillStyle = bullets[i].color;
+            ctx.fillRect(bullets[i].x, bullets[i].y, bullets[i].width, bullets[i].height);
+        }
+
+        // Draw Enemies
+        for (let i = 0; i < enemies.length; i++) {
+            ctx.fillStyle = enemies[i].color;
+            ctx.fillRect(enemies[i].x, enemies[i].y, enemies[i].width, enemies[i].height);
+        }
+
+        // Draw Player Health
+        ctx.fillStyle = "white";
+        ctx.fillText(`Health: ${player.health}`, 10, 20);
+
+        requestAnimationFrame(updateGame);
+    }
+
+    // Start the Game
+    updateGame();
+</script>
+
+</body>
+</html>
